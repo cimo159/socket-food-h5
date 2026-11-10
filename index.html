@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>食咩 · 今天吃什么 · 美食拼单</title>
+<meta name="description" content="校园美食点单与拼单小工具：浏览菜单、加入餐盘、和同学开房间一起拼单，实时看到大家点了什么。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍜</text></svg>">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🍜</span>
+    <div class="brand-text">
+      <h1>食咩</h1>
+      <p>今天吃什么 · 一起拼单</p>
+    </div>
+  </div>
+  <nav class="topnav">
+    <button class="nav-btn active" data-view="menu">点单</button>
+    <button class="nav-btn" data-view="room">拼单房间<span class="dot" id="roomDot" hidden></span></button>
+  </nav>
+</header>
+
+<!-- 连接状态条 -->
+<div class="connbar" id="connbar" data-state="offline">
+  <span class="conn-dot"></span>
+  <span id="connText">未连接拼单服务器 · 本地模式可用</span>
+  <button class="link-btn" id="connRetry" hidden>重连</button>
+</div>
+
+<main>
+  <!-- ============ 点单视图 ============ -->
+  <section class="view" id="view-menu">
+    <div class="hero">
+      <div class="hero-copy">
+        <h2>今日食堂，想吃点什么？</h2>
+        <p>挑好菜放进餐盘，开个房间叫上室友，谁点了什么一目了然。</p>
+      </div>
+      <div class="hero-actions">
+        <button class="btn btn-primary" id="btnRandom">🎲 随机来一份</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="chips" id="chips"></div>
+      <div class="search">
+        <input id="searchInput" type="search" placeholder="搜菜名，例如：面 / 鸡 / 杨枝甘露">
+      </div>
+    </div>
+
+    <div class="layout">
+      <!-- 菜单 -->
+      <div class="menu-wrap">
+        <div class="grid" id="menuGrid"></div>
+        <p class="empty" id="menuEmpty" hidden>没有找到相关菜品，换个关键词试试。</p>
+      </div>
+
+      <!-- 餐盘 -->
+      <aside class="cart" id="cart">
+        <div class="cart-head">
+          <h3>我的餐盘 <span class="badge" id="cartCount">0</span></h3>
+          <button class="link-btn" id="btnClear">清空</button>
+        </div>
+        <ul class="cart-list" id="cartList"></ul>
+        <p class="cart-empty" id="cartEmpty">餐盘还是空的，去左边挑点吃的吧。</p>
+        <div class="cart-foot">
+          <div class="total">
+            <span>合计</span>
+            <strong id="cartTotal">¥0</strong>
+          </div>
+          <button class="btn btn-primary block" id="btnCheckout" disabled>生成订单</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ 拼单房间视图 ============ -->
+  <section class="view" id="view-room" hidden>
+    <div class="room-grid">
+      <!-- 左：房间与成员 -->
+      <div class="panel">
+        <h3>拼单房间</h3>
+        <div class="field">
+          <label for="inputNick">我的昵称</label>
+          <input id="inputNick" maxlength="12" placeholder="例如：小美">
+        </div>
+        <div class="field">
+          <label for="inputRoom">房间号</label>
+          <input id="inputRoom" maxlength="8" placeholder="例如：888" value="888">
+        </div>
+        <div class="field-row">
+          <button class="btn btn-primary" id="btnJoin">加入房间</button>
+          <button class="btn" id="btnLeave" disabled>离开</button>
+        </div>
+        <p class="hint" id="roomHint">服务端地址：<code id="serverAddr">ws://127.0.0.1:8080</code>（可在页面地址后加 <code>?server=ws://主机:8080</code> 修改）</p>
+
+        <h4 class="sub">房间里的人 <span class="badge" id="memberCount">0</span></h4>
+        <ul class="members" id="memberList"></ul>
+        <p class="cart-empty" id="memberEmpty">还没有人加入。</p>
+      </div>
+
+      <!-- 中：拼单看板 -->
+      <div class="panel">
+        <h3>大家的餐盘</h3>
+        <div class="board" id="orderBoard"></div>
+        <p class="cart-empty" id="boardEmpty">房间里还没有人点单。</p>
+        <div class="board-foot">
+          <span id="roomTotalText">房间合计：¥0</span>
+          <button class="btn" id="btnSyncMine" disabled>把我的餐盘同步到房间</button>
+        </div>
+      </div>
+
+      <!-- 右：聊天 -->
+      <div class="panel chat-panel">
+        <h3>房间聊天</h3>
+        <div class="chat-log" id="chatLog"></div>
+        <form class="chat-form" id="chatForm">
+          <input id="chatInput" maxlength="120" placeholder="说点什么……（例如：我要一份杨枝甘露）" disabled>
+          <button class="btn btn-primary" type="submit" id="btnSend" disabled>发送</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 订单弹窗 -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-card">
+    <h3 id="modalTitle">订单确认</h3>
+    <pre class="order-text" id="orderText"></pre>
+    <div class="modal-actions">
+      <button class="btn" id="btnCloseModal">关闭</button>
+      <button class="btn btn-primary" id="btnCopy">复制文案</button>
+    </div>
+  </div>
+</div>
+
+<footer class="foot">
+  <p>食咩 · Socket 通信课程实验作品 · 前端纯静态可部署 GitHub Pages，拼单功能需运行 <code>server/server.js</code></p>
+</footer>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/realtime.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
